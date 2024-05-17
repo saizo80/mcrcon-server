@@ -32,3 +32,6 @@ go.work.sum
 
 # sqlite database file
 *.db
+
+# mc test data folder
+mcTestData/
