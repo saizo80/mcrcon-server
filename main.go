@@ -1,36 +1,30 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"strings"
 
-	"github.com/gorcon/rcon"
+	"github.com/saizo80/mcrcon-server/gen"
+	"github.com/saizo80/mcrcon-server/log"
+	serverfilefunctions "github.com/saizo80/mcrcon-server/serverFileFunctions"
 )
 
 func main() {
-	server := os.Getenv("RCON_SERVER")
-	port := os.Getenv("RCON_PORT")
-	password := os.Getenv("RCON_PASSWORD")
-	if server == "" || port == "" || password == "" {
-		fmt.Println("Please set RCON_SERVER, RCON_PORT, and RCON_PASSWORD environment variables")
+	args := os.Args[1:]
+
+	if gen.Contains(args, "-d", "--debug") {
+		log.DebugMode = true
+		log.Debug("debug logging enabled")
+	}
+
+	log.Info("starting mcrcon-server")
+	err := gen.GenInit()
+	if err != nil {
 		os.Exit(1)
 	}
-
-	conn, err := rcon.Dial(server+":"+port, password)
+	defer gen.DB.DB.Close()
+	defer gen.Conn.Conn.Close()
+	err = serverfilefunctions.InitPlayers()
 	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-
-	response, err := conn.Execute("help")
-	if err != nil {
-		panic(err)
-	}
-
-	// split the response into lines
-	lines := strings.Split(response, "/")[1:]
-	for _, line := range lines {
-		fmt.Println("/" + line)
+		os.Exit(1)
 	}
 }
