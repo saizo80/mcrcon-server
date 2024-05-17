@@ -1,0 +1,4 @@
+github.com/gorcon/rcon v1.3.5 h1:YE/Vrw6R99uEP08wp0EjdPAP3Jwz/ys3J8qxI1nYoeU=
+github.com/gorcon/rcon v1.3.5/go.mod h1:zR1qfKZttF8vAgH1NsP6CdpachOvLDq8jE64NboTpIM=
+github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
+github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
