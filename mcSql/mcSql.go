@@ -57,7 +57,50 @@ func (s *SQLInterface) setup() error {
 		banned boolean,
 		whitelisted boolean
 	)`)
-	return log.Error(err)
+	if err != nil {
+		return log.Error(err)
+	}
+	_, err = s.DB.Exec(`create table if not exists server_properties (
+		key text,
+		value text,
+		revision integer default 0,
+		date text,
+		active boolean default true,
+		primary key (key, revision)
+	)`)
+	if err != nil {
+		return log.Error(err)
+	}
+	return nil
+}
+
+func (s *SQLInterface) UpdatePropery(key string, value string) error {
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return log.Error(err)
+	}
+	result, err := tx.Query("select coalesce(max(revision), 0) from server_properties where key = ?", key)
+	if err != nil {
+		tx.Rollback()
+		return log.Error(err)
+	}
+	var revision int
+	for result.Next() {
+		result.Scan(&revision)
+	}
+	revision++
+	_, err = tx.Exec("update server_properties set active = false where key = ?", key)
+	if err != nil {
+		tx.Rollback()
+		return log.Error(err)
+	}
+	_, err = tx.Exec("insert into server_properties (key, value, revision, date) values (?, ?, ?, datetime('now'))", key, value, revision)
+	if err != nil {
+		tx.Rollback()
+		return log.Error(err)
+	}
+	tx.Commit()
+	return nil
 }
 
 func (s *SQLInterface) GetPlayers() ([]Player, error) {
