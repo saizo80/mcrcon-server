@@ -79,22 +79,36 @@ func (s *SQLInterface) UpdatePropery(key string, value string) error {
 	if err != nil {
 		return log.Error(err)
 	}
-	result, err := tx.Query("select coalesce(max(revision), 0) from server_properties where key = ?", key)
+	result, err := tx.Query("select coalesce(revision, 0), value from server_properties where key = ? and active = true", key)
 	if err != nil {
 		tx.Rollback()
 		return log.Error(err)
 	}
 	var revision int
+	var currentValue string
 	for result.Next() {
-		result.Scan(&revision)
+		result.Scan(&revision, &currentValue)
+	}
+	if currentValue == value {
+		tx.Rollback()
+		return nil
 	}
 	revision++
+
+	if currentValue != "" {
+		log.Info("%s updated from %s to %s (revision %d)", key, currentValue, value, revision)
+	}
+
 	_, err = tx.Exec("update server_properties set active = false where key = ?", key)
 	if err != nil {
 		tx.Rollback()
 		return log.Error(err)
 	}
-	_, err = tx.Exec("insert into server_properties (key, value, revision, date) values (?, ?, ?, datetime('now'))", key, value, revision)
+	_, err = tx.Exec(`insert into server_properties
+						(key, value, revision, date, active) 
+						values (?, ?, ?, datetime('now'), true)`,
+		key, value, revision,
+	)
 	if err != nil {
 		tx.Rollback()
 		return log.Error(err)

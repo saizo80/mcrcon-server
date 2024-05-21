@@ -1,6 +1,7 @@
 package serverfilefunctions
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,7 +28,10 @@ func InitPlayers() error {
 	ops := baseDir + "/ops.json"
 	usercache := baseDir + "/usercache.json"
 
-	usercachePlayers := readFile(usercache)
+	usercachePlayers, err := readPlayerFile(usercache)
+	if err != nil {
+		return err
+	}
 	for _, player := range usercachePlayers {
 		gen.DB.InsertPlayer(mcSql.Player{
 			UUID:        player.UUID,
@@ -39,11 +43,14 @@ func InitPlayers() error {
 		})
 	}
 
-	_, err := gen.DB.Exec("update players set whitelisted = false")
+	_, err = gen.DB.Exec("update players set whitelisted = false")
 	if err != nil {
 		return log.Error(err)
 	}
-	whitelistPlayers := readFile(whitelist)
+	whitelistPlayers, err := readPlayerFile(whitelist)
+	if err != nil {
+		return err
+	}
 	whitelistUUIDs := "("
 	for _, player := range whitelistPlayers {
 		whitelistUUIDs += fmt.Sprintf("'%s',", player.UUID)
@@ -58,7 +65,10 @@ func InitPlayers() error {
 	if err != nil {
 		return log.Error(err)
 	}
-	bannedPlayers := readFile(banned)
+	bannedPlayers, err := readPlayerFile(banned)
+	if err != nil {
+		return err
+	}
 	bannedUUIDs := "("
 	for _, player := range bannedPlayers {
 		bannedUUIDs += fmt.Sprintf("'%s',", player.UUID)
@@ -73,7 +83,10 @@ func InitPlayers() error {
 	if err != nil {
 		return log.Error(err)
 	}
-	opsPlayers := readFile(ops)
+	opsPlayers, err := readPlayerFile(ops)
+	if err != nil {
+		return err
+	}
 	opsUUIDs := "("
 	for _, player := range opsPlayers {
 		opsUUIDs += fmt.Sprintf("'%s',", player.UUID)
@@ -110,11 +123,45 @@ func InitPlayers() error {
 	return nil
 }
 
-func readFile(file string) []jsonPlayers {
+func InitServerProperties() error {
+	log.Debug("getting most current server properties from server.properties file")
+	// read the server.properties file and insert the properties into the database
+	baseDir := gen.MCDataDirectory
+	serverProperties := baseDir + "/server.properties"
+	f, err := os.Open(serverProperties)
+	if err != nil {
+		return log.Error(err)
+	}
+	defer f.Close()
+
+	reader := io.Reader(f)
+
+	// read the server.properties file
+	properties := map[string]string{}
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "=") {
+			parts := strings.Split(line, "=")
+			properties[parts[0]] = parts[1]
+		}
+	}
+
+	// insert the properties into the database
+	for key, value := range properties {
+		err := gen.DB.UpdatePropery(key, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func readPlayerFile(file string) ([]jsonPlayers, error) {
 	// read the file and return a slice of jsonPlayers
 	f, err := os.Open(file)
 	if err != nil {
-		panic(err)
+		return nil, log.Error(err)
 	}
 	defer f.Close()
 
@@ -123,7 +170,7 @@ func readFile(file string) []jsonPlayers {
 	players := []jsonPlayers{}
 	err = decoder.Decode(&players)
 	if err != nil {
-		panic(err)
+		return nil, log.Error(err)
 	}
-	return players
+	return players, nil
 }

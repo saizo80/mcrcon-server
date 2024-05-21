@@ -27,4 +27,8 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+	err = serverfilefunctions.InitServerProperties()
+	if err != nil {
+		os.Exit(1)
+	}
 }
