@@ -42,6 +42,25 @@ func (r *Rcon) Execute(command string) (string, error) {
 	return r.Conn.Execute(command)
 }
 
+func (r *Rcon) BanPlayer(player string, reason string) (bool, error) {
+	if reason == "" {
+		reason = "Banned by an operator via mcrcon-server."
+	}
+	result, err := r.Execute("ban " + player + " " + reason)
+	if strings.Contains(result, "That player does not exist") {
+		return false, err
+	}
+	return true, err
+}
+
+func (r *Rcon) UnbanPlayer(player string) (bool, error) {
+	result, err := r.Execute("pardon " + player)
+	if strings.Contains(result, "The player isn't banned") {
+		return false, err
+	}
+	return true, err
+}
+
 func (r *Rcon) ping() error {
 	result, err := r.Conn.Execute("list")
 	if err != nil || !strings.Contains(result, "There are") {

@@ -13,11 +13,6 @@ import (
 	"github.com/saizo80/mcrcon-server/mcSql"
 )
 
-type jsonPlayers struct {
-	UUID string `json:"uuid"`
-	Name string `json:"name"`
-}
-
 func InitPlayers() error {
 	log.Debug("getting most current player data from server files")
 	// read current players from whitelist.json, banned-players.json, ops.json, and usercache.json
@@ -34,8 +29,8 @@ func InitPlayers() error {
 	}
 	for _, player := range usercachePlayers {
 		gen.DB.InsertPlayer(mcSql.Player{
-			UUID:        player.UUID,
-			Name:        player.Name,
+			UUID:        player["uuid"].(string),
+			Name:        player["name"].(string),
 			Active:      false,
 			Op:          false,
 			Banned:      false,
@@ -49,11 +44,11 @@ func InitPlayers() error {
 	}
 	whitelistPlayers, err := readPlayerFile(whitelist)
 	if err != nil {
-		return err
+		return log.Error(err)
 	}
 	whitelistUUIDs := "("
 	for _, player := range whitelistPlayers {
-		whitelistUUIDs += fmt.Sprintf("'%s',", player.UUID)
+		whitelistUUIDs += fmt.Sprintf("'%s',", player["uuid"])
 	}
 	whitelistUUIDs = whitelistUUIDs[:len(whitelistUUIDs)-1] + ")"
 	_, err = gen.DB.Exec(fmt.Sprintf("update players set whitelisted = true where uuid in %s", whitelistUUIDs))
@@ -67,16 +62,14 @@ func InitPlayers() error {
 	}
 	bannedPlayers, err := readPlayerFile(banned)
 	if err != nil {
-		return err
-	}
-	bannedUUIDs := "("
-	for _, player := range bannedPlayers {
-		bannedUUIDs += fmt.Sprintf("'%s',", player.UUID)
-	}
-	bannedUUIDs = bannedUUIDs[:len(bannedUUIDs)-1] + ")"
-	_, err = gen.DB.Exec(fmt.Sprintf("update players set banned = true where uuid in %s", bannedUUIDs))
-	if err != nil {
 		return log.Error(err)
+	}
+	for _, player := range bannedPlayers {
+		err := gen.DB.UpdatePlayerBanned(player["uuid"].(string), true, player["reason"].(string))
+		if err != nil {
+			return log.Error(err)
+		}
+
 	}
 
 	_, err = gen.DB.Exec("update players set op = false")
@@ -85,11 +78,11 @@ func InitPlayers() error {
 	}
 	opsPlayers, err := readPlayerFile(ops)
 	if err != nil {
-		return err
+		return log.Error(err)
 	}
 	opsUUIDs := "("
 	for _, player := range opsPlayers {
-		opsUUIDs += fmt.Sprintf("'%s',", player.UUID)
+		opsUUIDs += fmt.Sprintf("'%s',", player["uuid"])
 	}
 	opsUUIDs = opsUUIDs[:len(opsUUIDs)-1] + ")"
 	_, err = gen.DB.Exec(fmt.Sprintf("update players set op = true where uuid in %s", opsUUIDs))
@@ -113,7 +106,7 @@ func InitPlayers() error {
 		for _, player := range players {
 			err := gen.DB.UpdatePlayerActive(strings.TrimSpace(player), true)
 			if err != nil {
-				return err
+				return log.Error(err)
 			}
 		}
 	} else {
@@ -168,20 +161,20 @@ func InitServerProperties() error {
 	return nil
 }
 
-func readPlayerFile(file string) ([]jsonPlayers, error) {
+func readPlayerFile(file string) ([]map[string]interface{}, error) {
 	// read the file and return a slice of jsonPlayers
 	f, err := os.Open(file)
 	if err != nil {
-		return nil, log.Error(err)
+		return nil, err
 	}
 	defer f.Close()
 
 	reader := io.Reader(f)
 	decoder := json.NewDecoder(reader)
-	players := []jsonPlayers{}
+	players := []map[string]interface{}{}
 	err = decoder.Decode(&players)
 	if err != nil {
-		return nil, log.Error(err)
+		return nil, err
 	}
 	return players, nil
 }

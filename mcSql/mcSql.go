@@ -55,15 +55,17 @@ func (s *SQLInterface) setup() error {
 		active boolean,
 		op boolean,
 		banned boolean,
-		whitelisted boolean
+		whitelisted boolean,
+		banned_reason text default null
 	)`)
 	if err != nil {
 		return log.Error(err)
 	}
+	log.Debug("creating server_properties table")
 	_, err = s.DB.Exec(`create table if not exists server_properties (
 		key text,
 		value text,
-		revision integer default 0,
+		revision integer,
 		date text,
 		active boolean default true,
 		primary key (key, revision)
@@ -173,13 +175,17 @@ func (s *SQLInterface) UpdatePlayerOp(uuid string, op bool) {
 	tx.Commit()
 }
 
-func (s *SQLInterface) UpdatePlayerBanned(uuid string, banned bool) {
+func (s *SQLInterface) UpdatePlayerBanned(id string, banned bool, reason string) error {
+	if reason == "" {
+		reason = "Banned by an operator via mcrcon-server."
+	}
 	tx, err := s.DB.Begin()
 	if err != nil {
-		panic(err)
+		return err
 	}
-	tx.Exec("update players set banned = ? where uuid = ?", banned, uuid)
-	tx.Commit()
+	tx.Exec("update players set banned = ?, banned_reason = ? where uuid = ? or name = ?", banned, reason, id, id)
+	err = tx.Commit()
+	return err
 }
 
 func (s *SQLInterface) UpdatePlayerWhitelisted(uuid string, whitelisted bool) {
