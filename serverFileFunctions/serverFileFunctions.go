@@ -154,6 +154,17 @@ func InitServerProperties() error {
 			return err
 		}
 	}
+
+	// disable any properties that are not in the server.properties file
+	keys := "("
+	for key := range properties {
+		keys += fmt.Sprintf("'%s',", key)
+	}
+	keys = keys[:len(keys)-1] + ")"
+	_, err = gen.DB.Exec(fmt.Sprintf("update server_properties set active = false where key not in %s", keys))
+	if err != nil {
+		return log.Error(err)
+	}
 	return nil
 }
 
