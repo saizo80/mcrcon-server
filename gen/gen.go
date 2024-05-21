@@ -1,9 +1,6 @@
 package gen
 
 import (
-	"os"
-
-	"github.com/saizo80/mcrcon-server/log"
 	"github.com/saizo80/mcrcon-server/mcSql"
 	"github.com/saizo80/mcrcon-server/mcrcon"
 )
@@ -21,14 +18,7 @@ const (
 )
 
 func GenInit() error {
-	Server := os.Getenv("RCON_SERVER")
-	Port := os.Getenv("RCON_PORT")
-	Password := os.Getenv("RCON_PASSWORD")
-	if Server == "" || Port == "" || Password == "" {
-		return log.Errorf("RCON_SERVER, RCON_PORT, and RCON_PASSWORD must be set")
-	}
-
-	err := Conn.Init(Server, Port, Password)
+	err := Conn.Init()
 	if err != nil {
 		return err
 	}
